@@ -470,6 +470,7 @@ The ONNX model files are included as an alternative inference format and for rep
 ---
 
 # Docker Deployment
+The Dockerized deployment uses `main.py` as the main application entry point. The Dockerfile packages the required runtime environment, dependencies, and model files needed to execute the application.
 
 The Docker image contains the complete inference environment, including:
 

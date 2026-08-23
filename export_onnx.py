@@ -1,8 +1,7 @@
 from pathlib import Path
 from ultralytics import YOLO
-
-PROJECT_DIR = Path("/app")
-
+from pathlib import Path
+PROJECT_DIR=Path(__file__).resolve().parent
 YOLO_PT = PROJECT_DIR / "yolov8m.pt"
 YOLO_ONNX = PROJECT_DIR / "yolov8m.onnx"
 
