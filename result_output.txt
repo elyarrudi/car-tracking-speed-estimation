@@ -1,0 +1,49 @@
+CONFIGURATION
+==================================================
+Input video: /app/input/bb.mp4
+Output video: /app/output/result.mp4
+Use ReID: False
+Line 1: x=170, y1=250, y2=400
+Line 2: x=795, y1=250, y2=400
+Output line: x=900
+Real distance: 15.0 m
+==================================================
+GPU: NVIDIA GeForce GTX 1660 Ti
+YOLO running with PyTorch FP32
+INFO     BotSort: det_thresh=0.3, max_age=30, max_obs=50, min_hits=3,
+         iou_threshold=0.3, per_class=False, asso_func=iou, reid_model=None,
+         track_high_thresh=0.3, track_low_thresh=0.1, new_track_thresh=0.3,
+         track_buffer=30, match_thresh=0.8, proximity_thresh=0.5,
+         appearance_thresh=0.25, cmc_method=ecc, frame_rate=30,
+         fuse_first_associate=False, with_reid=False, use_cmc=False
+BoTSORT ready | with_reid=False
+Video: 1280x720, FPS=28.941843015253998, frames=393
+Starting PyTorch processing...
+Frame 50/393 | 29.1 ms | 34.41 FPS
+ID 14: 55.8 km/h (0.97s)
+Frame 100/393 | 29.8 ms | 33.57 FPS
+ID 19: 57.9 km/h (0.93s)
+Frame 150/393 | 35.2 ms | 28.38 FPS
+Frame 200/393 | 30.0 ms | 33.30 FPS
+Frame 250/393 | 28.8 ms | 34.73 FPS
+Frame 300/393 | 33.2 ms | 30.14 FPS
+ID 29: 48.8 km/h (1.11s)
+ID 34: 57.9 km/h (0.93s)
+ID 43: 62.5 km/h (0.86s)
+Frame 350/393 | 30.8 ms | 32.45 FPS
+ID 42: 41.1 km/h (1.31s)
+Video processing finished.
+
+==================================================
+BENCHMARK - PyTorch + ReID FP32
+==================================================
+Frames: 393
+Maximum vehicles: 15
+Total processing time: 17.59 sec
+Average latency: 44.75 ms/frame
+Median latency: 30.99 ms/frame
+P95 latency: 35.43 ms/frame
+Average FPS: 22.35
+Median FPS: 32.27
+Output: /app/output/result.mp4
+==================================================
