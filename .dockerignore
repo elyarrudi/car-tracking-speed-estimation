@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+*.egg
+.pytest_cache
+.coverage
+
+# Virtual Environments
+venv
+env
+.venv
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation & Demo files (not needed in Docker)
+*.md
+result_1.png
+result_2.png
+result.mp4
+result_output.txt
+car-tracking.tar
+bb.mp4
+
+# Utility files (not used in Docker)
+get_coordinates.py

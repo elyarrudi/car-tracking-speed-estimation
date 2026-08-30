@@ -35,7 +35,7 @@ line2_y1 = int(os.getenv("LINE2_Y1", "250"))
 line2_y2 = int(os.getenv("LINE2_Y2", "400"))
 
 line_out = int(os.getenv("LINE_OUT", "900"))
-REAL_DISTANCE_METERS = float(os.getenv("REAL_DISTANCE_METERS", "13"))
+REAL_DISTANCE_METERS = float(os.getenv("REAL_DISTANCE_METERS", "15"))
 
 if not VIDEO_LOCAL.exists():
     raise FileNotFoundError(f"Video not found: {VIDEO_LOCAL}")
