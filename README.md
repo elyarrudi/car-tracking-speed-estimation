@@ -6,6 +6,12 @@ The system uses a pretrained **YOLOv8m** model for vehicle detection, **BoTSORT*
 
 The inference environment is packaged as a Docker image for reproducible deployment.
 
+## Sample Results
+
+![Sample result 1](./result_1.png)
+
+![Sample result 2](./result_2.png)
+
 ---
 
 ## Demo
