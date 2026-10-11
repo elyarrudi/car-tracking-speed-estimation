@@ -6,6 +6,10 @@ The system uses a pretrained **YOLOv8m** model for vehicle detection, **BoTSORT*
 
 The inference environment is packaged as a Docker image for reproducible deployment.
 
+## Sample Output Video
+
+![Vehicle tracking output animation](./output/result_bb_reid.gif)
+
 ## Sample Results
 
 ![Sample result 1](./result_1.png)
