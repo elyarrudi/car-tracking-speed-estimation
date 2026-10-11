@@ -1,574 +1,138 @@
-# Car Tracking & Speed Estimation
+# Car Tracking and Speed Estimation
 
-A GPU-accelerated computer vision system for **vehicle detection, multi-object tracking, optional ReID, trajectory visualization, and vehicle speed estimation from video**.
+Vehicle detection, BoT-SORT tracking, optional OSNet ReID, and speed estimation from a fixed camera. Detection uses pretrained YOLOv8m weights. This project does not train or fine-tune YOLO.
 
-The system uses a pretrained **YOLOv8m** model for vehicle detection, **BoTSORT** for multi-object tracking, and **OSNet ReID** for optional appearance-based tracking.
-
-The inference environment is packaged as a Docker image for reproducible deployment.
-
-## Sample Output Video
-
-![Vehicle tracking output animation](./output/result_bb_reid.gif)
-
-## Sample Results
-
-![Sample result 1](./result_1.png)
-
-![Sample result 2](./result_2.png)
-
----
-
-## Demo
-
-The repository includes demonstration files showing the complete output of the project.
-
-### Demo Video
+Speed is the time a track takes to cross two vertical lines, converted with a real-world distance:
 
 ```text
-result.mp4
+speed_kmh = (distance_meters / travel_time_seconds) * 3.6
 ```
 
-`result.mp4` is the processed demo video and demonstrates:
+The script requires an NVIDIA GPU. If CUDA is not available it raises `GPU is not available.`
 
-* Vehicle detection
-* Vehicle tracking
-* Tracking IDs
-* Vehicle trajectories
-* Measurement lines
-* Vehicle speed estimation
-* Processing information
+## Result
 
-### Demo Images
+![Tracking preview](output/result_bb_reid.gif)
 
-The repository also contains two example output images:
+![Sample frame 1](result_1.png)
+
+![Sample frame 2](result_2.png)
+
+`result_output.txt` is the console log of one run with ReID off. The configuration block in that file is:
+
+| Item | Logged value |
+| --- | --- |
+| Input | `/app/input/bb.mp4` |
+| ReID | false |
+| Line 1 | x=170, y=250 to 400 |
+| Line 2 | x=795, y=250 to 400 |
+| Clear measurements after | x=900 |
+| Real distance | 15 m |
+| GPU | NVIDIA GeForce GTX 1660 Ti |
+| Video | 1280×720, 28.94 FPS, 393 frames |
+
+Benchmark printed for that run:
+
+| Metric | Value |
+| --- | --- |
+| Frames | 393 |
+| Maximum vehicles in a frame | 15 |
+| Total processing time | 17.59 s |
+| Average latency | 44.75 ms |
+| Median latency | 30.99 ms |
+| P95 latency | 35.43 ms |
+| Average FPS | 22.35 |
+| Median FPS | 32.27 |
+
+Speeds written in that log include 55.8, 57.9, 48.8, 62.5, and 41.1 km/h. The benchmark banner in `main.py` always prints `PyTorch + ReID FP32`; the configuration lines above it are the ones that show whether ReID was on.
+
+Sample videos: `output/result_bb_reid.mp4` and `output/result_bb_noreid.mp4`. The source clip used by `get_coordinates.py` and by the logged run is `bb.mp4`.
+
+## Detection and tracking
+
+YOLOv8m (`yolov8m.pt`) runs in PyTorch FP32. The tracker is BoT-SORT from BoxMOT. Kept classes are the COCO ids in `main.py`:
+
+| Class id | Label |
+| ---: | --- |
+| 2 | car |
+| 3 | motorcycle |
+| 5 | bus |
+| 7 | truck |
+
+Detection confidence is 0.35 and the IoU threshold is 0.5. Optional appearance features come from `osnet_x0_25_msmt17.pt`. The code default for `USE_REID` is `true`. The logged benchmark above used `false`.
+
+`get_coordinates.py` opens `bb.mp4` in an OpenCV window so the measurement lines can be clicked. It is a local helper, not the Docker entrypoint.
+
+## Run
+
+Host requirements: Docker, an NVIDIA GPU and driver, and the NVIDIA Container Toolkit. Python packages are inside the image. The Dockerfile copies `main.py`, `yolov8m.pt`, and `osnet_x0_25_msmt17.pt`.
+
+Put the input video in `input/`. The processed file is written to `output/`.
+
+Linux:
+
+```bash
+docker build -t car-tracking .
+docker run --rm --gpus all \
+  -v "$(pwd)/input:/app/input" \
+  -v "$(pwd)/output:/app/output" \
+  -e VIDEO_PATH=/app/input/bb.mp4 \
+  -e OUTPUT_PATH=/app/output/result.mp4 \
+  -e USE_REID=false \
+  car-tracking:latest
+```
+
+Windows PowerShell:
+
+```powershell
+docker build -t car-tracking .
+docker run --rm --gpus all `
+  -v "${PWD}/input:/app/input" `
+  -v "${PWD}/output:/app/output" `
+  -e VIDEO_PATH=/app/input/bb.mp4 `
+  -e OUTPUT_PATH=/app/output/result.mp4 `
+  -e USE_REID=false `
+  car-tracking:latest
+```
+
+Omitting the `LINE_*` and `REAL_DISTANCE_METERS` variables uses the defaults in `main.py`, which are the values in the table above. Set `USE_REID=true` to enable OSNet. ReID increases the work per frame.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VIDEO_PATH` | `/app/input/video.mp4` | Input path inside the container |
+| `OUTPUT_PATH` | `/app/output/result.mp4` | Output path inside the container |
+| `USE_REID` | `true` | OSNet appearance features |
+| `LINE1_X`, `LINE1_Y1`, `LINE1_Y2` | 170, 250, 400 | First vertical line |
+| `LINE2_X`, `LINE2_Y1`, `LINE2_Y2` | 795, 250, 400 | Second vertical line |
+| `LINE_OUT` | 900 | Drop a track from the measurement state after this x |
+| `REAL_DISTANCE_METERS` | 15 | Distance between the two lines |
+
+Those defaults match `result_output.txt`. Another camera needs its own line positions and distance. A wrong distance scales every speed by the same factor.
+
+## Project files
 
 ```text
-result_1.png
-result_2.png
-```
-
-These images provide additional visual examples of the detection, tracking, trajectory, and speed-estimation results.
-
-### Demo Output
-
-The file:
-
-```text
-result_output.txt
-```
-
-contains the complete console output from the demo execution.
-
-It includes:
-
-* Runtime configuration
-* Input and output paths
-* ReID configuration
-* GPU information
-* Video information
-* Processing progress
-* Vehicle speed measurements
-* Final benchmark results
-* Processing performance metrics
-
-The benchmark values shown in `result_output.txt` are the actual output generated by the application.
-
----
-
-## Features
-
-* Vehicle detection using pretrained YOLOv8m
-* Multi-object tracking using BoTSORT
-* Optional appearance-based ReID using OSNet
-* Tracking IDs for individual vehicles
-* Vehicle trajectory visualization
-* Virtual measurement lines
-* Vehicle speed estimation
-* Configurable camera-scene parameters
-* Input/output video configuration
-* NVIDIA GPU acceleration
-* PyTorch FP32 inference
-* Automatic video information detection
-* Processing benchmark and performance metrics
-* Dockerized deployment
-
----
-
-# Detection Model
-
-The project uses the **pretrained YOLOv8m model**.
-
-The YOLO model used in this project was **not trained or fine-tuned as part of this project**. The system directly uses the available pretrained YOLOv8m weights for inference.
-
-The model detects objects in the input video, after which the vehicle classes required by the application are passed to the tracking pipeline.
-
-The supported vehicle categories are:
-
-| Class | Object     |
-| ----- | ---------- |
-| 2     | Car        |
-| 3     | Motorcycle |
-| 5     | Bus        |
-| 7     | Truck      |
-
----
-
-# Tracking
-
-Detected vehicles are tracked using **BoTSORT**.
-
-Each detected vehicle receives a tracking ID that is maintained across video frames.
-
-Example:
-
-```text
-Car ID: 13
-Car ID: 18
-Truck ID: 28
-```
-
-The tracking system allows the application to identify the same vehicle while it moves through the camera scene.
-
----
-
-# ReID
-
-The system optionally uses **OSNet ReID** to provide appearance-based information to the tracking system.
-
-ReID can be enabled or disabled depending on the deployment requirements.
-
-### ReID Enabled
-
-```bash
--e USE_REID=true
-```
-
-### ReID Disabled
-
-```bash
--e USE_REID=false
-```
-
-Enabling ReID can improve appearance-based identity association, but it also increases computational cost and can reduce processing speed.
-
----
-
-# Speed Estimation
-
-The system estimates vehicle speed by measuring how long a tracked vehicle takes to travel between two virtual measurement lines.
-
-The physical distance between the two measurement lines is provided by the user.
-
-### Speed Calculation Formula
-
-The speed is calculated using the following formula:
-
-```
-speed = real_distance / travel_time
-speed_kmh = speed × 3.6
-```
-
-Where:
-- `real_distance` is the actual physical distance between measurement lines (in meters)
-- `travel_time` is the time taken for the vehicle to travel between the lines (in seconds)
-- `speed` is the calculated speed in m/s
-- `speed_kmh` is the final speed in km/h (multiplication by 3.6 converts m/s to km/h)
-
-The application then calculates the vehicle's speed and displays it in **km/h**.
-
-Example:
-
-```text
-Car ID:13 [48 km/h]
-```
-
-The estimated speed is also reported in the console.
-
----
-
-# Input Parameters
-
-The application is configured through environment variables when running the Docker container.
-
-These parameters allow the same Docker image to be used with different videos and camera scenes without rebuilding the image.
-
-| Parameter              | Description                                        | Example                  |
-| ---------------------- | -------------------------------------------------- | ------------------------ |
-| `VIDEO_PATH`           | Path of the input video inside the container       | `/app/input/video.mp4`   |
-| `OUTPUT_PATH`          | Path where the processed video is saved            | `/app/output/result.mp4` |
-| `USE_REID`             | Enables or disables ReID                           | `true`                   |
-| `LINE1_X`              | X position of the first measurement line           | `660`                    |
-| `LINE1_Y1`             | Starting Y position of the first measurement line  | `480`                    |
-| `LINE1_Y2`             | Ending Y position of the first measurement line    | `600`                    |
-| `LINE2_X`              | X position of the second measurement line          | `1120`                   |
-| `LINE2_Y1`             | Starting Y position of the second measurement line | `480`                    |
-| `LINE2_Y2`             | Ending Y position of the second measurement line   | `600`                    |
-| `LINE_OUT`             | X position used to clear completed measurements    | `800`                    |
-| `REAL_DISTANCE_METERS` | Real-world distance between measurement lines      | `13`                     |
-
----
-
-# Parameter Details
-
-### `VIDEO_PATH`
-
-Specifies the input video that will be processed.
-
-Example:
-
-```bash
--e VIDEO_PATH=/app/input/video.mp4
-```
-
-The video is provided from the host machine through a Docker volume.
-
-### `OUTPUT_PATH`
-
-Specifies where the processed video will be saved.
-
-Example:
-
-```bash
--e OUTPUT_PATH=/app/output/result.mp4
-```
-
-The generated video is available in the host's `output` directory.
-
-### `USE_REID`
-
-Controls whether OSNet ReID is enabled.
-
-```bash
--e USE_REID=true
-```
-
-or:
-
-```bash
--e USE_REID=false
-```
-
-Use `true` when appearance-based identity information is desired.
-
-Use `false` when higher processing speed is preferred.
-
-### `LINE1_X`
-
-Defines the horizontal position of the first measurement line.
-
-### `LINE1_Y1`
-
-Defines the upper Y coordinate of the first measurement line.
-
-### `LINE1_Y2`
-
-Defines the lower Y coordinate of the first measurement line.
-
-Together, `LINE1_X`, `LINE1_Y1`, and `LINE1_Y2` define the first measurement line.
-
-### `LINE2_X`
-
-Defines the horizontal position of the second measurement line.
-
-### `LINE2_Y1`
-
-Defines the upper Y coordinate of the second measurement line.
-
-### `LINE2_Y2`
-
-Defines the lower Y coordinate of the second measurement line.
-
-Together, `LINE2_X`, `LINE2_Y1`, and `LINE2_Y2` define the second measurement line.
-
-### `LINE_OUT`
-
-Defines the position beyond which completed vehicle measurements are cleared from the active measurement state.
-
-This parameter is scene-dependent and should be adjusted according to the camera view.
-
-### `REAL_DISTANCE_METERS`
-
-Specifies the actual physical distance between the two speed measurement lines.
-
-Correct calibration of this parameter is important for accurate speed estimation.
-
----
-
-# Running the Docker Image
-
-First, load the Docker image if it was provided as a TAR archive:
-
-```bash
-docker load -i car-tracking.tar
-```
-
-Verify that the image is available:
-
-```bash
-docker images
-```
-
-You should see:
-
-```text
-car-tracking   latest
-```
-
----
-
-# Prepare Input and Output Directories
-
-Create two directories:
-
-```bash
-mkdir -p input output
-```
-
-Place the input video inside the `input` directory:
-
-```text
-project/
-├── input/
-│   └── video.mp4
-└── output/
-```
-
-The processed video will be written to `output`.
-
----
-
-# Run With ReID
-
-```bash
-docker run --rm \
---device=nvidia.com/gpu=all \
--v "$(pwd)/input:/app/input" \
--v "$(pwd)/output:/app/output" \
--e VIDEO_PATH=/app/input/video.mp4 \
--e OUTPUT_PATH=/app/output/result.mp4 \
--e USE_REID=true \
--e LINE1_X=660 \
--e LINE1_Y1=480 \
--e LINE1_Y2=600 \
--e LINE2_X=1120 \
--e LINE2_Y1=480 \
--e LINE2_Y2=600 \
--e LINE_OUT=800 \
--e REAL_DISTANCE_METERS=13 \
-car-tracking:latest
-```
-
----
-
-# Run Without ReID
-
-For faster inference, ReID can be disabled:
-
-```bash
-docker run --rm \
---device=nvidia.com/gpu=all \
--v "$(pwd)/input:/app/input" \
--v "$(pwd)/output:/app/output" \
--e VIDEO_PATH=/app/input/video.mp4 \
--e OUTPUT_PATH=/app/output/result.mp4 \
--e USE_REID=false \
--e LINE1_X=660 \
--e LINE1_Y1=480 \
--e LINE1_Y2=600 \
--e LINE2_X=1120 \
--e LINE2_Y1=480 \
--e LINE2_Y2=600 \
--e LINE_OUT=800 \
--e REAL_DISTANCE_METERS=13 \
-car-tracking:latest
-```
-
----
-
-# Output
-
-The generated video contains:
-
-* Vehicle bounding boxes
-* Tracking IDs
-* Vehicle classes
-* Vehicle trajectories
-* Measurement lines
-* Estimated vehicle speed
-* Current vehicle count
-* Frame information
-* Video time
-* Processing mode
-
-The final video is saved to the configured `OUTPUT_PATH`.
-
-Example:
-
-```text
-output/
-└── result.mp4
-```
-
-The repository also contains `result.mp4` as a demonstration of the final output.
-
----
-
-# Performance Benchmark
-
-The application automatically reports processing performance after the video has been processed.
-
-The benchmark includes:
-
-* Total number of frames
-* Maximum number of tracked vehicles
-* Total processing time
-* Average latency per frame
-* Median latency per frame
-* P95 latency
-* Average FPS
-* Median FPS
-
-The complete benchmark output from the demonstration run is available in:
-
-```text
-result_output.txt
-```
-
-This file contains the actual console output generated by the application, including the configuration, GPU information, processing progress, vehicle speed measurements, and final benchmark results.
-
----
-
-# Docker Deployment
-The Dockerized deployment uses `main.py` as the main application entry point. The Dockerfile packages the required runtime environment, dependencies, and model files needed to execute the application.
-
-The Docker image contains the complete inference environment, including:
-
-* Application code
-* Pretrained YOLOv8m model
-* OSNet ReID model
-* PyTorch
-* Required Python dependencies
-* CUDA runtime environment
-* OpenCV
-* Ultralytics
-* BoxMOT
-
-The input video is **not required to be included in the Docker image**.
-
-Instead, input and output directories are mounted from the host machine.
-
-This allows the same Docker image to process different videos without rebuilding the image.
-
----
-
-# Project Structure
-
-The repository contains the application, model files, Docker configuration, and demonstration outputs.
-
-```text
-car-tracking/
+car_tracking_docker/
 ├── Dockerfile
 ├── main.py
+├── get_coordinates.py
 ├── requirements.txt
 ├── yolov8m.pt
 ├── osnet_x0_25_msmt17.pt
-├── result.mp4
+├── bb.mp4
 ├── result_1.png
 ├── result_2.png
 ├── result_output.txt
-└── .gitignore
+└── output/
+    ├── result_bb_reid.gif
+    ├── result_bb_reid.mp4
+    └── result_bb_noreid.mp4
 ```
 
-The Docker image contains the runtime environment and application dependencies.
+`input/` and `output/` mounts used at runtime are gitignored, except the sample files already stored under `output/` in this tree. Do not commit a `docker save` tar; `.gitignore` excludes `car-tracking.tar`.
 
-The demo files are included to provide a visual and reproducible example of the project output.
+## Limits
 
-**Note:** While Docker images can be provided as TAR archives (using `docker save`), the TAR file itself should **not** be stored in the GitHub repository. Docker images are typically large and GitHub is not an appropriate storage location for binary artifacts. If you need to distribute the Docker image, consider using a container registry (Docker Hub, GitHub Container Registry, etc.) or provide instructions for building the image from the Dockerfile.
-
----
-
-# Requirements
-
-The host machine requires:
-
-* Docker
-* NVIDIA GPU
-* NVIDIA GPU driver
-* NVIDIA Container Toolkit
-* Linux or a compatible Docker environment with NVIDIA GPU support
-
-The Python environment and application dependencies do not need to be installed separately on the host when using the Docker image.
-
----
-
-# System Architecture
-
-```text
-Input Video
-     │
-     ▼
-Pretrained YOLOv8m
-     │
-     ▼
-Vehicle Detection
-     │
-     ▼
-BoTSORT Tracking
-     │
-     ├──────────────► OSNet ReID (Optional)
-     │
-     ▼
-Tracking IDs
-     │
-     ▼
-Vehicle Trajectories
-     │
-     ▼
-Virtual Measurement Lines
-     │
-     ▼
-Travel Time Measurement
-     │
-     ▼
-Speed Estimation
-     │
-     ▼
-Annotated Output Video
-```
-
----
-
-# Important Notes
-
-* The project uses a **pretrained YOLOv8m model** directly for inference.
-* No YOLO training or fine-tuning was performed as part of this project.
-* The system is designed as an **inference and deployment pipeline**.
-* ReID is optional and can be enabled or disabled at runtime.
-* Speed estimation requires correct calibration of the measurement lines and real-world distance.
-* `result.mp4`, `result_1.png`, and `result_2.png` provide visual demonstrations of the project.
-* `result_output.txt` contains the complete output and benchmark information from the demonstration run.
-* The same Docker image can process different input videos without rebuilding the image.
-
----
-
-# Technical Stack
-
-| Component                     | Technology         |
-| ----------------------------- | ------------------ |
-| Programming Language          | Python             |
-| Object Detection              | Pretrained YOLOv8m |
-| Object Tracking               | BoTSORT            |
-| Appearance ReID               | OSNet x0.25        |
-| Deep Learning Framework       | PyTorch            |
-| GPU Acceleration              | NVIDIA CUDA        |
-| Computer Vision               | OpenCV             |
-| Numerical Processing          | NumPy              |
-| Model Format                  | PyTorch            |
-| Deployment                    | Docker             |
-
----
-
-# License
-
-This project is provided for research, portfolio, and demonstration purposes.
-
+- YOLO is pretrained. Identity and speed behavior were not measured against a labeled tracking or speed dataset.
+- The FPS numbers are one 393-frame clip on a GTX 1660 Ti with ReID off.
+- Speed is only as accurate as the line placement and `REAL_DISTANCE_METERS` for that camera.
